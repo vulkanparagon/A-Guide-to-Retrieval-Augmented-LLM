@@ -1,151 +1,123 @@
 # A-Guide-to-Retrieval-Augmented-LLM
 
-ChatGPT 的出现，让我们看到了大语言模型 ( Large Language Model, LLM ) 在语言和代码理解、人类指令遵循、基本推理等多方面的能力，但幻觉问题 **[Hallucinations](https://machinelearningmastery.com/a-gentle-introduction-to-hallucinations-in-large-language-models/)** 仍然是当前大语言模型面临的一个重要挑战。简单来说，幻觉问题是指 LLM 生成不正确、荒谬或者与事实不符的结果。此外，数据新鲜度 ( Data Freshness ) 也是 LLM 在生成结果时出现的另外一个问题，即 LLM 对于一些时效性比较强的问题可能给不出或者给出过时的答案。而通过检索外部相关信息的方式来增强 LLM 的生成结果是当前解决以上问题的一种流行方案，这里把这种方案称为 **检索增强 LLM** ( Retrieval Augmented LLM )，有时候也被称为 检索增强生成 ( Retrieval Augmented Generation, RAG )。 这篇长文将对检索增强 LLM 的方案进行一个相对全面的介绍。主要内容包括：
+The emergence of ChatGPT has allowed us to see the capabilities of Large Language Model (LLM) in many aspects such as language and code understanding, human instruction following, and basic reasoning. However, the hallucination problem**[Hallucinations](https://machinelearningmastery.com/a-gentle-introduction-to-hallucinations-in-large-language-models/)** remains an important challenge facing current large language models. Simply put, the hallucination problem is when an LLM generates results that are incorrect, absurd, or inconsistent with reality. In addition, data freshness (Data Freshness) is another problem that occurs when LLM generates results, that is, LLM may not be able to give or give outdated answers to some time-sensitive questions. Retrieving external relevant information to enhance the generated results of LLM is a popular solution to solve the above problems. This solution is called Retrieval Augmented LLM (Retrieval Augmented LLM), sometimes also called Retrieval Augmented LLM. Retrieval Augmented Generation (RAG) for retrieval. This long article will give a relatively comprehensive introduction to the scheme of retrieval-enhanced LLM. The main contents include:
 
-- 检索增强 LLM 的概念介绍、重要性及其解决的问题
-- 检索增强 LLM 的关键模块及其实现方法
-- 检索增强 LLM 的一些案例分析和应用
+- The concept introduction, importance and problems solved by RA LLM
+- The key modules of RA LLM and their implementation methods
+- Some case studies and applications of RA LLM
 
-这篇文章算是自己对这个领域的一篇学习总结，所以可能不是很专业和深入，也难免会有一些不准确的地方，欢迎讨论。
+This article can be regarded as a summary of my study in this field, so it may not be very professional and in-depth, and there will inevitably be some inaccuracies. Discussions are welcome.
 
 ![timemate_wechat](assets/timemate_wechat.jpeg)
 
-# 什么是检索增强 LLM
+# What is RA LLM
 
-检索增强 LLM ( Retrieval Augmented LLM )，简单来说，就是给 LLM 提供外部数据库，对于用户问题 ( Query )，通过一些信息检索 ( Information Retrieval, IR ) 的技术，先从外部数据库中检索出和用户问题相关的信息，然后让 LLM 结合这些相关信息来生成结果。下图是一个检索增强 LLM 的简单示意图。
+RA LLM (Retrieval Augmented LLM), simply put, is to provide an external database for LLM. For user questions (Query), through some IR(Information Retrieval) technology, first retrieve the user questions from the external database Relevant information, and then let LLM combine this relevant information to generate results. The figure below is a simple diagram of a retrieval-enhanced LLM.
 
 ![retrieval_augmented_llm_overall_architecture](assets/retrieval_augmented_llm_overall_architecture.png)
 
-OpenAI 研究科学家 Andrej Karpathy 前段时间在微软 Build 2023 大会上做过一场关于 GPT 模型现状的分享 [State of GPT](https://www.youtube.com/watch?v=bZQun8Y4L2A&ab_channel=MicrosoftDeveloper)，这场演讲前半部分分享了 ChatGPT 这类模型是如何一步一步训练的，后半部分主要分享了 LLM 模型的一些应用方向，其中就对检索增强 LLM 这个应用方向做了简单介绍。下面这张图就是 Andrej 分享中关于这个方向的介绍。
+OpenAI research scientist Andrej Karpathy made a sharing about the current status of the GPT model at the Microsoft Build 2023 conference some time ago [State of GPT](https://www.youtube.com/watch?v=bZQun8Y4L2A&ab_channel=MicrosoftDeveloper). The first half of the speech shared how models such as ChatGPT are trained step by step. The second half mainly shared some application directions of the LLM model, including a brief introduction to the application direction of retrieval enhanced LLM. The picture below is the introduction to this direction shared by Andrej.
 
 ![retrieval_augmented_llm_in_state_of_gpt](assets/retrieval_augmented_llm_in_state_of_gpt.jpeg)
 
-传统的信息检索工具，比如 Google/Bing 这样的搜索引擎，只有检索能力 ( **Retrieval-only** )，现在 LLM 通过预训练过程，将海量数据和知识嵌入到其巨大的模型参数中，具有记忆能力 ( **Memory-only** )。从这个角度看，检索增强 LLM 处于中间，将 LLM 和传统的信息检索相结合，通过一些信息检索技术将相关信息加载到 LLM 的工作内存 ( **Working Memory** ) 中，即 LLM 的上下文窗口 ( **Context Window** )，亦即 LLM 单次生成时能接受的最大文本输入。
+Traditional information retrieval tools, such as search engines like Google/Bing, only have retrieval capabilities (**Retrieval-only**). Now LLM embeds massive data and knowledge into its huge model parameters through the pre-training process, with Memory ability ( **Memory-only** ). From this perspective, retrieval-enhanced LLM is in the middle, combining LLM with traditional information retrieval, and loading relevant information into the working memory (**Working Memory**) of LLM through some information retrieval techniques, that is, the context window of LLM ( **Context Window** ), which is the maximum text input that LLM can accept in a single generation.
 
-不仅 Andrej 的分享中提到基于检索来增强 LLM 这一应用方式，从一些著名投资机构针对 AI 初创企业技术栈的调研和总结中，也可以看到基于检索来增强 LLM 技术的广泛应用。比如今年6月份红杉资本发布了一篇关于大语言模型技术栈的文章 [**The New Language Model Stack**](https://www.sequoiacap.com/article/llm-stack-perspective/)，其中就给出了一份对其投资的33家 AI 初创企业进行的问卷调查结果，下图的调查结果显示有 88% 左右的创业者表示在自己的产品中有使用到基于检索增强 LLM 技术。
+Not only did Andrej’s sharing mention the application method of enhancing LLM based on retrieval, but also from the research and summary of the technology stack of AI start-ups by some well-known investment institutions, we can also see the widespread application of retrieval-based LLM technology. For example, in June this year, Sequoia Capital published an article about the large language model technology stack [**The New Language Model Stack**](https://www.sequoiacap.com/article/llm-stack-perspective/) , which gave the results of a questionnaire survey of 33 AI start-ups it invested in. The survey results in the figure below show that about 88% of entrepreneurs said that they have used search-based enhanced LLM technology in their products. .
 
 ![sequoia_language_model_survey](assets/sequoia_language_model_survey.png)
 
-无独有偶，美国著名风险投资机构 A16Z 在今年6月份也发表了一篇介绍当前 LLM 应用架构的总结文章 [**Emerging Architectures for LLM Applications**](https://a16z.com/emerging-architectures-for-llm-applications/)，下图就是文章中总结的当前 LLM 应用的典型架构，其中最上面 **Contextual Data** 引入 LLM 的方式就是一种通过检索来增强 LLM 的思路。 
+Coincidentally, the famous American venture capital institution A16Z also published a summary article introducing the current LLM application architecture in June this year [**Emerging Architectures for LLM Applications**](https://a16z.com/emerging-architectures-for -llm-applications/), the following figure is the typical architecture of the current LLM application summarized in the article, among which the way **Contextual Data** at the top introduces LLM is an idea to enhance LLM through retrieval.
 
 ![emerging_llm_app_stack](assets/emerging_llm_app_stack.png)
 
-# 检索增强 LLM 解决的问题
+# Retrieve problems solved by RA LLM
 
-为什么要结合传统的信息检索系统来增强 LLM ？换句话说，基于检索增强的 LLM 主要解决的问题是什么？
+Why RA LLM with traditional information retrieval systems? In other words, what is the main problem solved by LLM based on retrieval enhancement?
 
-## 长尾知识
+## Long tail knowledge
 
-虽然当前 LLM 的训练数据量已经非常庞大，动辄几百 GB 级别的数据量，万亿级别的标记数量 ( Token )，比如 GPT-3 的预训练数据使用了3000 亿量级的标记，LLaMA 使用了 1.4 万亿量级的标记。训练数据的来源也十分丰富，比如维基百科、书籍、论坛、代码等，LLM 的模型参数量也十分巨大，从几十亿、百亿到千亿量级，但让 LLM 在有限的参数中记住所有知识或者信息是不现实的，训练数据的涵盖范围也是有限的，总会有一些长尾知识在训练数据中不能覆盖到。
-
-对于一些相对通用和大众的知识，LLM 通常能生成比较准确的结果，而对于一些长尾知识，LLM 生成的回复通常并不可靠。ICML 会议上的这篇论文 [Large Language Models Struggle to Learn Long-Tail Knowledge](https://arxiv.org/abs/2211.08411)，就研究了 LLM 对基于事实的问答的准确性和预训练数据中相关领域文档数量的关系，发现有很强的相关性，即预训练数据中相关文档数量越多，LLM 对事实性问答的回复准确性就越高。从这个研究中可以得出一个简单的结论 —— LLM 对长尾知识的学习能力比较弱。下面这张图就是论文中绘制的相关性曲线。
+Although the current LLM training data volume is already very large, often hundreds of GB of data and trillions of markers (Tokens). For example, the pre-training data of GPT-3 uses 300 billion markers, and LLaMA uses 1.4 trillion mark. The sources of training data are also very rich, such as Wikipedia, books, forums, codes, etc. The number of LLM model parameters is also very huge, ranging from billions, tens of billions to hundreds of billions. However, LLM can record in limited parameters. It is unrealistic to have all knowledge or information, and the coverage of training data is also limited. There will always be some long-tail knowledge that cannot be covered in the training data.
+For some relatively general and popular knowledge, LLM can usually generate more accurate results, but for some long-tail knowledge, the responses generated by LLM are usually unreliable. This paper [Large Language Models Struggle to Learn Long-Tail Knowledge](https://arxiv.org/abs/2211.08411) at the ICML conference studies the accuracy of LLM for fact-based question answering and the accuracy of pre-training data. We found a strong correlation with the number of documents in related fields, that is, the greater the number of relevant documents in the pre-training data, the higher the accuracy of LLM's response to factual questions and answers. A simple conclusion can be drawn from this study - LLM's learning ability for long-tail knowledge is relatively weak. The picture below is the correlation curve drawn in the paper.
 
 ![llm_long_tail_evidence](assets/llm_long_tail_evidence.png)
 
-为了提升 LLM 对长尾知识的学习能力，容易想到的是在训练数据加入更多的相关长尾知识，或者增大模型的参数量，虽然这两种方法确实都有一定的效果，上面提到的论文中也有实验数据支撑，但这两种方法是不经济的，即需要一个很大的训练数据量级和模型参数才能大幅度提升 LLM 对长尾知识的回复准确性。而通过检索的方法把相关信息在 LLM 推断时作为上下文 ( Context ) 给出，既能达到一个比较好的回复准确性，也是一种比较经济的方式。下面这张图就是提供相关信息的情况下，不同大小模型的回复准确性，对比上一张图，可以看到对于同一参数量级的模型，在提供少量相关文档参与预训练的情况下，让模型在推断阶段利用相关信息，其回复准确性有了大幅提升。
+In order to improve LLM's ability to learn long-tail knowledge, it is easy to think of adding more relevant long-tail knowledge to the training data, or increasing the number of parameters of the model. Although both methods do have certain effects, as mentioned above There is also experimental data support in the paper, but these two methods are uneconomical, that is, a large training data magnitude and model parameters are required to greatly improve the accuracy of LLM's response to long-tail knowledge. The retrieval method provides relevant information as context during LLM inference, which can not only achieve a better response accuracy, but also be a more economical way. The picture below shows the response accuracy of models of different sizes when relevant information is provided. Comparing the previous picture, we can see that for models of the same parameter magnitude, when a small number of relevant documents are provided to participate in pre-training, let The model utilizes relevant information during the inference phase, and its response accuracy is greatly improved.
 
 ![llm_long_tail_retrieval_method_performance](assets/llm_long_tail_retrieval_method_performance.png)
 
-## 私有数据
+## private data
 
-ChatGPT 这类通用的 LLM 预训练阶段利用的大部分都是公开的数据，不包含私有数据，因此对于一些私有领域知识是欠缺的。比如问 ChatGPT 某个企业内部相关的知识，ChatGPT 大概率是不知道或者胡编乱造。虽然可以在预训练阶段加入私有数据或者利用私有数据进行微调，但训练和迭代成本很高。此外，有研究和实践表明，通过一些特定的攻击手法，可以让 LLM 泄漏训练数据，如果训练数据中包含一些私有信息，就很可能会发生隐私信息泄露。比如这篇论文 [Extracting Training Data from Large Language Models](https://arxiv.org/abs/2012.07805) 的研究者们就通过构造的 Query 从 **GPT-2** 模型中提取出了个人公开的姓名、邮箱、电话号码和地址信息等，即使这些信息可能只在训练数据中出现一次。文章还发现，较大规模的模型比较小规模的更容易受到攻击。
+Most of the pre-training stages of general-purpose LLMs such as ChatGPT use public data and do not include private data, so some private domain knowledge is lacking. For example, if you ask ChatGPT about the internal knowledge of a certain enterprise, ChatGPT will most likely not know it or make it up randomly. Although private data can be added in the pre-training stage or used for fine-tuning, the training and iteration costs are high. In addition, research and practice have shown that LLM can leak training data through some specific attack methods. If the training data contains some private information, privacy information leakage is likely to occur. For example, the researchers of this paper [Extracting Training Data from Large Language Models](https://arxiv.org/abs/2012.07805) extracted personal disclosures from the **GPT-2** model through the constructed Query. Name, email, phone number and address information, etc., even though this information may only appear once in the training data. The article also found that larger-scale models are more vulnerable to attacks than smaller-scale ones.
 
 ![llm_private_training_data_leak_example1](assets/llm_private_training_data_leak_example1.png)
 
-如果把私有数据作为一个外部数据库，让 LLM 在回答基于私有数据的问题时，直接从外部数据库中检索出相关信息，再结合检索出的相关信息进行回答。这样就不用通过预训练或者微调的方法让 LLM 在参数中记住私有知识，既节省了训练或者微调成本，也一定程度上避免了私有数据的泄露风险。
+If private data is used as an external database, LLM can directly retrieve relevant information from the external database when answering questions based on private data, and then combine the retrieved relevant information to answer. This eliminates the need for LLM to remember private knowledge in parameters through pre-training or fine-tuning, which not only saves training or fine-tuning costs, but also avoids the risk of private data leakage to a certain extent.
 
-## 数据新鲜度
-
-由于 LLM 中学习的知识来自于训练数据，虽然大部分知识的更新周期不会很快，但依然会有一些知识或者信息更新得很频繁。LLM 通过从预训练数据中学到的这部分信息就很容易过时。比如 GPT-4 模型使用的是截止到 2021-09 的预训练数据，因此涉及这个日期之后的事件或者信息，它会拒绝回答或者给出的回复是过时或者不准确的。下面这个示例是问 GPT-4 当前推特的 CEO 是谁，GPT-4 给出的回复还是 Jack Dorsey，并且自己会提醒说回复可能已经过时了。
+## Data freshness
+Since the knowledge learned in LLM comes from training data, although the update cycle of most knowledge will not be very fast, there will still be some knowledge or information that is updated very frequently. The information LLM learns from pre-training data can easily become obsolete. For example, the GPT-4 model uses pre-training data as of 2021-09, so when it comes to events or information after this date, it will refuse to answer or give outdated or inaccurate responses. The following example asks GPT-4 who is the current CEO of Twitter. The reply given by GPT-4 is still Jack Dorsey, and it will remind itself that the reply may be out of date.
 
 ![ceo_of_twitter_gpt](assets/ceo_of_twitter_gpt.png)
 
-如果把频繁更新的知识作为外部数据库，供 LLM 在必要的时候进行检索，就可以实现在不重新训练 LLM 的情况下对 LLM 的知识进行更新和拓展，从而解决 LLM 数据新鲜度的问题。
-
-## 来源验证和可解释性
-
-通常情况下，LLM 生成的输出不会给出其来源，比较难解释为什么会这么生成。而通过给 LLM 提供外部数据源，让其基于检索出的相关信息进行生成，就在生成的结果和信息来源之间建立了关联，因此生成的结果就可以追溯参考来源，可解释性和可控性就大大增强。即可以知道 LLM 是基于什么相关信息来生成的回复。Bing Chat 就是利用检索来增强 LLM 输出的典型产品，下图展示的就是 Bing Chat 的产品截图，可以看到其生成的回复中会给出相关信息的链接。
+If frequently updated knowledge is used as an external database for LLM to retrieve when necessary, the knowledge of LLM can be updated and expanded without retraining LLM, thus solving the problem of LLM data freshness.
+## Source verification and interpretability
+Often, the output generated by LLM does not give its source, making it difficult to explain why it is generated as it is. By providing external data sources to LLM and allowing it to generate based on the retrieved relevant information, a correlation is established between the generated results and the information source, so the generated results can be traced back to the reference source, making it interpretable and controllable. Sex is greatly enhanced. That is, you can know what relevant information LLM is based on to generate a reply. Bing Chat is a typical product that uses retrieval to enhance LLM output. The following figure shows a screenshot of the Bing Chat product. You can see that links to relevant information are given in the responses generated.
 
 ![bing_chat_screeshot](assets/bing_chat_screeshot.png)
 
-利用检索来增强 LLM 的输出，其中很重要的一步是通过一些检索相关的技术从外部数据中找出相关信息片段，然后把相关信息片段作为上下文供 LLM 在生成回复时参考。有人可能会说，随着 LLM 的上下文窗口 ( **Context Window** ) 越来越长，检索相关信息的步骤是不是就没有必要了，直接在上下文中提供尽可能多的信息。比如 GPT-4 模型当前接收的最大上下文长度是 32K， Claude 模型最大允许 [100K](https://www.anthropic.com/index/100k-context-windows) 的上下文长度。 
-
-虽然 LLM 的上下文窗口越来越大，但检索相关信息的步骤仍然是重要且必要的。一方面当前 LLM 的网络架构决定了其上下文窗口的长度是会有上限的，不会无限增长。另外看似很大的上下文窗口，能容纳的信息其实比较有限，比如 32K 的长度可能仅仅相当于一篇大学毕业论文的长度。另一方面，有研究表明，提供少量更相关的信息，相比于提供大量不加过滤的信息，LLM 回复的准确性会更高。比如斯坦福大学的这篇论文 [Lost in the Middle](https://arxiv.org/pdf/2307.03172.pdf) 就给出了下面的实验结果，可以看到 LLM 回复的准确性随着上下文窗口中提供的文档数量增多而下降。
-
+An important step in using retrieval to enhance the output of LLM is to use some retrieval-related techniques to find relevant information fragments from external data, and then use the relevant information fragments as context for LLM to refer to when generating responses. One might say that as the context window ( **Context Window** ) of LLM becomes longer and longer, the step of retrieving relevant information is not necessary, and as much information as possible is provided directly in the context. For example, the maximum context length currently received by the GPT-4 model is 32K, and the maximum allowed context length of the Claude model is [100K](https://www.anthropic.com/index/100k-context-windows).
+Although the context window of LLM is getting larger, the step of retrieving relevant information is still important and necessary. On the one hand, the current network architecture of LLM determines that the length of its context window has an upper limit and will not grow infinitely. In addition, the seemingly large context window actually holds relatively limited information. For example, the length of 32K may only be equivalent to the length of a university graduation thesis. On the other hand, studies have shown that providing a small amount of more relevant information leads to greater accuracy in LLM responses than providing a large amount of unfiltered information. For example, this paper [Lost in the Middle](https://arxiv.org/pdf/2307.03172.pdf) from Stanford University gives the following experimental results. You can see that the accuracy of the LLM reply increases with the context window. The number of documents provided increases and decreases.
 ![lost_in_the_middle_result](assets/lost_in_the_middle_result.png)
+Retrieval technology is used to find the information fragments most relevant to the input question from a large amount of external data. While providing a reference for LLM to generate responses, it also filters out the interference of some irrelevant information to a certain extent to improve the accuracy of generated responses. Furthermore, the larger the context window, the higher the inference cost. Therefore, the introduction of relevant information retrieval steps can also reduce unnecessary reasoning costs.
 
-利用检索技术从大量外部数据中找出与输入问题最相关的信息片段，在为 LLM 生成回复提供参考的同时，也一定程度上过滤掉一些非相关信息的干扰，便于提高生成回复的准确性。此外，上下文窗口越大，推理成本越高。所以相关信息检索步骤的引入也能降低不必要的推理成本。
-
-# 关键模块
-
-为了构建检索增强 LLM 系统，需要实现的关键模块和解决的问题包括:
-
-- **数据和索引模块**: 如何处理外部数据和构建索引
-- **查询和检索模块**: 如何准确高效地检索出相关信息
-- **响应生成模块**: 如何利用检索出的相关信息来增强 LLM 的输出
-
-## 数据和索引模块
-
-### 数据获取
-
-数据获取模块的作用一般是将多种来源、多种类型和格式的外部数据转换成一个统一的文档对象 ( Document Object )，便于后续流程的处理和使用。文档对象除了包含原始的文本内容，一般还会携带文档的元信息 ( Metadata )，可以用于后期的检索和过滤。元信息包括但不限于：
-
-- 时间信息，比如文档创建和修改时间
-- 标题、关键词、实体(人物、地点等)、文本类别等信息
-- 文本总结和摘要
-
-有些元信息可以直接获取，有些则可以借助 NLP 技术，比如关键词抽取、实体识别、文本分类、文本摘要等。既可以采用传统的 NLP 模型和框架，也可以基于 LLM 实现。
+# Key modules
+In order to build a retrieval-enhanced LLM system, the key modules that need to be implemented and the problems that need to be solved include:
+- **Data and Index Module**: How to handle external data and build indexes
+- **Query and retrieval module**: How to retrieve relevant information accurately and efficiently
+- **Response Generation Module**: How to utilize retrieved relevant information to enhance the output of LLM
+## Data and index module
+### data collection
+The role of the data acquisition module is generally to convert external data from multiple sources, types and formats into a unified document object (Document Object) to facilitate processing and use in subsequent processes. In addition to containing the original text content, the document object generally also carries the metainformation of the document (Metadata), which can be used for later retrieval and filtering. Meta information includes but is not limited to:
+- Time information, such as document creation and modification time
+- Title, keywords, entities (people, places, etc.), text categories and other information
+- Text summaries and abstracts
+Some meta-information can be obtained directly, and some can rely on NLP technology, such as keyword extraction, entity recognition, text classification, text summarization, etc. Either traditional NLP models and frameworks can be used, or they can be implemented based on LLM.
 
 ![data_ingestion_overview](assets/data_ingestion_overview.png)
 
-外部数据的来源可能是多种多样的，比如可能来自
+The sources of external data may be diverse, such as
+- Various Doc documents, Sheets, Slides presentations, Calendar schedules, Drive files, etc. in Google suite
+- Data from chat communities such as Slack and Discord
+- Code files hosted on Github, Gitlab
+- Various documents on Confluence
+- Data from Web pages
+- Data returned by the API
+- local files
 
-- Google 套件里各种 Doc 文档、Sheet 表格、Slides 演示、Calendar 日程、Drive 文件等
-- Slack、Discord 等聊天社区的数据
-- Github、Gitlab 上托管的代码文件
-- Confluence 上各种文档
-- Web 网页的数据
-- API 返回的数据
-- 本地文件
+The types and file formats of external data may also be diverse, such as
+- From the perspective of data type, including plain text, tables, presentation documents, codes, etc.
+- From the perspective of file storage format, including txt, csv, pdf, markdown, json and other formats
+External data may be multilingual, such as Chinese, English, German, Japanese, etc. In addition, it may also be multi-modal. In addition to the text modality discussed above, it also includes pictures, audio, video and other modalities. However, the external data discussed in this article will be limited to text modality.
+When building a data acquisition module, data from different sources, types, formats, and languages ​​may require different reading methods.
 
-外部数据的类型和文件格式也可能是多样化的，比如
+### Text chunking
+Text chunking is the process of cutting long text into smaller pieces, such as cutting a long article into relatively short paragraphs. So why text chunking? On the one hand, the current context length of LLM is limited. Directly putting all of a long article as relevant information into the context window of LLM may exceed the length limit. On the other hand, for long texts, even if they are related to the query question, they are generally not completely relevant. Chunking can eliminate irrelevant content to a certain extent and filter some for subsequent reply generation. Unnecessary noise.
+The quality of text segmentation will greatly affect the effect of subsequent reply generation. If the segmentation is not good, the correlation between the content will be cut off. Therefore it is important to design a good chunking strategy. Chunking strategies include specific segmentation methods (such as whether to segment by sentences or paragraphs), the appropriate size of the blocks, whether overlap between different blocks is allowed, etc. Pinecone's blog [Chunking Strategies for LLM Applications](https://www.pinecone.io/learn/chunking-strategies/) gives some factors to consider when designing chunking strategies.
+- **Characteristics of original content**: Is the original content long (blog posts, books, etc.) or short (tweets, instant messages, etc.), what format is it (HTML, Markdown, Code, or LaTeX, etc.), different content Features may lend themselves to different chunking strategies;
+- **Subsequent indexing method**: The most commonly used index at present is vector indexing of the divided content, so different vector embedding models may have their own applicable block sizes, such as **sentence-transformer** The model is more suitable for embedding sentence-level content. The suitable block size of OpenAI's **text-embedding-ada-002** model is between 256 and 512 tokens;
+- **Question Length**: The length of the question needs to be considered, because relevant text fragments need to be retrieved based on the question;
+- **How ​​to use the retrieved relevant content in the reply generation phase**: If the retrieved relevant content is directly provided to LLM as part of the Prompt, then the input length limit of LLM needs to be considered when designing the block size. 
 
-- 从数据类型来看，包括纯文本、表格、演示文档、代码等
-- 从文件存储格式来看，包括 txt、csv、pdf、markdown、json 等格式
-
-外部数据可能是多语种的，比如中文、英文、德文、日文等。除此之外，还可能是多模态的，除了上面讨论的文本模态，还包括图片、音频、视频等多种模态。不过这篇文章中讨论的外部数据将限定在文本模态。
-
-在构建数据获取模块时，不同来源、类型、格式、语种的数据可能都需要采用不同的读取方式。
-
-### 文本分块
-
-文本分块是将长文本切分成小片段的过程，比如将一篇长文章切分成一个个相对短的段落。那么为什么要进行文本分块？一方面当前 LLM 的上下文长度是有限制的，直接把一篇长文全部作为相关信息放到 LLM 的上下文窗口中，可能会超过长度限制。另一方面，对于长文本来说，即使其和查询的问题相关，但一般不会通篇都是完全相关的，而分块能一定程度上剔除不相关的内容，为后续的回复生成过滤一些不必要的噪声。
-
-文本分块的好坏将很大程度上影响后续回复生成的效果，切分得不好，内容之间的关联性会被切断。因此设计一个好的分块策略十分重要。分块策略包括具体的切分方法 ( 比如是按句子切分还是段落切分 )，块的大小设为多少合适，不同的块之间是否允许重叠等。Pinecone 的这篇博客 [Chunking Strategies for LLM Applications](https://www.pinecone.io/learn/chunking-strategies/) 中就给出了一些在设计分块策略时需要考虑的因素。
-
-- **原始内容的特点**：原始内容是长文 ( 博客文章、书籍等 ) 还是短文 ( 推文、即时消息等 )，是什么格式 ( HTML、Markdown、Code 还是 LaTeX 等 )，不同的内容特点可能会适用不同的分块策略；
-- **后续使用的索引方法**：目前最常用的索引是对分块后的内容进行向量索引，那么不同的向量嵌入模型可能有其适用的分块大小，比如 **sentence-transformer** 模型比较适合对句子级别的内容进行嵌入，OpenAI 的 **text-embedding-ada-002** 模型比较适合的分块大小在 256~512 个标记数量；
-- **问题的长度**：问题的长度需要考虑，因为需要基于问题去检索出相关的文本片段；
-- **检索出的相关内容在回复生成阶段的使用方法**：如果是直接把检索出的相关内容作为 Prompt 的一部分提供给 LLM，那么 LLM 的输入长度限制在设计分块大小时就需要考虑。
-
-#### 分块实现方法
-
-那么文本分块具体如何实现？一般来说，实现文本分块的整体流程如下: 
-
-1. 将原始的长文本切分成小的语义单元，这里的语义单元通常是句子级别或者段落级别；
-2. 将这些小的语义单元融合成更大的块，直到达到设定的块大小 ( Chunk Size )，就将该块作为独立的文本片段；
-3. 迭代构建下一个文本片段，一般相邻的文本片段之间会设置重叠，以保持语义的连贯性。
-
-那如何把原始的长文本切分成小的语义单元? 最常用的是基于分割符进行切分，比如句号 ( . )、换行符 ( \\n )、空格等。除了可以利用单个分割符进行简单切分，还可以定义一组分割符进行迭代切分，比如定义 `["\n\n", "\n", " ", ""]` 这样一组分隔符，切分的时候先利用第一个分割符进行切分 ( 实现类似按段落切分的效果 )，第一次切分完成后，对于超过预设大小的块，继续使用后面的分割符进行切分，依此类推。这种切分方法能比较好地保持原始文本的层次结构。
-
-对于一些结构化的文本，比如代码，Markdown，LaTeX 等文本，在进行切分的时候可能需要单独进行考虑:
-
-- 比如 Python 代码文件，分割符中可能就需要加入类似 `\nclass `，`\ndef ` 这种来保证类和函数代码块的完整性；
-- 比如 Markdown 文件，是通过不同层级的 Header 进行组织的，即不同数量的 \# 符号，在切分时就可以通过使用特定的分割符来维持这种层级结构。
-
-文本块大小的设定也是分块策略需要考虑的重要因素，太大或者太小都会影响最终回复生成的效果。文本块大小的计算方法，最常用的可以直接基于字符数进行统计 ( Character-level )，也可以基于标记数进行统计 ( Token-level )。至于如何确定合适的分块大小，这个因场景而异，很难有一个统一的标准，可以通过评估不同分块大小的效果来进行选择。
-
-上面提到的一些分块方法在 [LangChain](https://python.langchain.com/docs/modules/data_connection/document_transformers/) 中都有相应的实现。比如下面的代码示例
+#### Block implementation method
+So how to implement text blocking? Generally speaking, the overall process of implementing text chunking is as follows:
+1. Divide the original long text into small semantic units, where the semantic units are usually at the sentence level or paragraph level;
+2. Fuse these small semantic units into larger chunks until the set chunk size (Chunk Size) is reached, then treat the chunk as an independent text fragment;
+3. Iteratively construct the next text fragment. Generally, there will be overlap between adjacent text fragments to maintain semantic coherence.
+So how to split the original long text into small semantic units? The most commonly used method is to split based on delimiters, such as periods (.), newlines (\\n), spaces, etc. In addition to using a single separator for simple segmentation, you can also define a set of separators for iterative segmentation, such as defining a set of separators such as `["\n\n", "\n", " ", ""]` character, when segmenting, first use the first separator to perform segmentation (to achieve an effect similar to segmenting by paragraph). After the first segmentation is completed, for blocks that exceed the preset size, continue to use subsequent separators. Slice, and so on. This segmentation method can better maintain the hierarchical structure of the original text.
+For some structured texts, such as code, Markdown, LaTeX and other texts, you may need to consider them separately when segmenting:
+- For example, in Python code files, you may need to add characters like `\nclass` and `\ndef` in the delimiter to ensure the integrity of class and function code blocks;
+- For example, Markdown files are organized through different levels of Headers, that is, different numbers of \# symbols. This hierarchical structure can be maintained by using specific separators when splitting.
+The setting of text block size is also an important factor to consider in the chunking strategy. If it is too large or too small, it will affect the effect of final reply generation. The most commonly used calculation method for text block size can be based directly on the number of characters (Character-level) or based on the number of tokens (Token-level). As for how to determine the appropriate block size, this varies from scenario to scene, and it is difficult to have a unified standard. The choice can be made by evaluating the effects of different block sizes.
+Some of the blocking methods mentioned above have corresponding implementations in [LangChain](https://python.langchain.com/docs/modules/data_connection/document_transformers/). For example, the following code example
 
 ```python
 from langchain.text_splitter import CharacterTextSplitter
