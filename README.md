@@ -1,6 +1,9 @@
 # A-Guide-to-Retrieval-Augmented-LLM
 
-The emergence of ChatGPT has allowed us to see the capabilities of Large Language Model (LLM) in many aspects such as language and code understanding, human instruction following, and basic reasoning. However, the hallucination problem**[Hallucinations](https://machinelearningmastery.com/a-gentle-introduction-to-hallucinations-in-large-language-models/)** remains an important challenge facing current large language models. Simply put, the hallucination problem is when an LLM generates results that are incorrect, absurd, or inconsistent with reality. In addition, data freshness (Data Freshness) is another problem that occurs when LLM generates results, that is, LLM may not be able to give or give outdated answers to some time-sensitive questions. Retrieving external relevant information to enhance the generated results of LLM is a popular solution to solve the above problems. This solution is called Retrieval Augmented LLM (Retrieval Augmented LLM), sometimes also called Retrieval Augmented LLM. Retrieval Augmented Generation (RAG) for retrieval. This long article will give a relatively comprehensive introduction to the scheme of retrieval-enhanced LLM. The main contents include:
+Translated version
+
+The emergence of ChatGPT has allowed us to see the capabilities of Large Language Model (LLM) in many aspects such as language and code understanding, human instruction following, and basic reasoning. However, the hallucination problem 
+**[Hallucinations](https://machinelearningmastery.com/a-gentle-introduction-to-hallucinations-in-large-language-models/)** remains an important challenge facing current large language models. Simply put, the hallucination problem is when an LLM generates results that are incorrect, absurd, or inconsistent with reality. In addition, data freshness (Data Freshness) is another problem that occurs when LLM generates results, that is, LLM may not be able to give or give outdated answers to some time-sensitive questions. Retrieving external relevant information to enhance the generated results of LLM is a popular solution to solve the above problems. This solution is called Retrieval Augmented LLM (Retrieval Augmented LLM), sometimes also called Retrieval Augmented LLM. Retrieval Augmented Generation (RAG) for retrieval. This long article will give a relatively comprehensive introduction to the scheme of retrieval-enhanced LLM. The main contents include:
 
 - The concept introduction, importance and problems solved by RA LLM
 - The key modules of RA LLM and their implementation methods
@@ -8,7 +11,7 @@ The emergence of ChatGPT has allowed us to see the capabilities of Large Languag
 
 This article can be regarded as a summary of my study in this field, so it may not be very professional and in-depth, and there will inevitably be some inaccuracies. Discussions are welcome.
 
-![timemate_wechat](assets/timemate_wechat.jpeg)
+
 
 # What is RA LLM
 
@@ -148,76 +151,38 @@ md_splitter = RecursiveCharacterTextSplitter.from_language(
 
 ```
 
-### 数据索引
-
-经过前面的数据读取和文本分块操作后，接着就需要对处理好的数据进行索引。索引是一种数据结构，用于快速检索出与用户查询相关的文本内容。它是检索增强 LLM 的核心基础组件之一。
-
-下面介绍几种常见的索引结构。为了说明不同的索引结构，引入节点(Node)的概念。在这里，节点就是前面步骤中对文档切分后生成的文本块(Chunk)。下面的索引结构图来自 LlamaIndex 的文档[How Each Index Works](https://gpt-index.readthedocs.io/en/latest/core_modules/data_modules/index/index_guide.html)。
-
-#### 链式索引
-
-链式索引通过链表的结构对文本块进行顺序索引。在后续的检索和生成阶段，可以简单地顺序遍历所有节点，也可以基于关键词进行过滤。
-
-![list_index](assets/list_index.webp)
-
+### Data index
 ![list_query](assets/list_query.webp)
-
 ![list_filter_query](assets/list_filter_query.webp)
-
-#### 树索引
-
-树索引将一组节点 ( 文本块 ) 构建成具有层级的树状索引结构，其从叶节点 (原始文本块) 向上构建，每个父节点都是子节点的摘要。在检索阶段，既可以从根节点向下进行遍历，也可以直接利用根节点的信息。树索引提供了一种更高效地查询长文本块的方式，它还可以用于从文本的不同部分提取信息。与链式索引不同，树索引无需按顺序查询。
-
+#### Tree index
+A tree index builds a set of nodes (text blocks) into a hierarchical tree-like index structure that builds upward from leaf nodes (original text blocks), with each parent node being a summary of a child node. In the retrieval phase, you can either traverse downward from the root node, or directly use the information of the root node. Tree indexes provide a more efficient way to query long blocks of text, and can also be used to extract information from different parts of the text. Unlike chained indexes, tree indexes do not require sequential queries.
 ![tree_index](assets/tree_index.webp)
-
 ![tree_query](assets/tree_query.png)
-
-#### 关键词表索引
-
-关键词表索引从每个节点中提取关键词，构建了每个关键词到相应节点的多对多映射，意味着每个关键词可能指向多个节点，每个节点也可能包含多个关键词。在检索阶段，可以基于用户查询中的关键词对节点进行筛选。
-
+#### Keyword table index
+The keyword table index extracts keywords from each node and constructs a many-to-many mapping of each keyword to the corresponding node, which means that each keyword may point to multiple nodes, and each node may also contain multiple keywords. . During the retrieval phase, nodes can be filtered based on keywords in user queries.
 ![keyword_table_index](assets/keyword_table_index.webp)
-
 ![keyword_query](assets/keyword_query.webp)
-
-#### 向量索引
-
-向量索引是当前最流行的一种索引方法。这种方法一般利用**文本嵌入模型** ( Text Embedding Model ) 将文本块映射成一个固定长度的向量，然后存储在**向量数据库**中。检索的时候，对用户查询文本采用同样的文本嵌入模型映射成向量，然后基于向量相似度计算获取最相似的一个或者多个节点。
-
+#### Vector index
+Vector indexing is currently the most popular indexing method. This method generally uses the **Text Embedding Model** (Text Embedding Model) to map the text block into a fixed-length vector, and then stores it in the **Vector Database**. During retrieval, the user query text is mapped into a vector using the same text embedding model, and then the most similar node or nodes are obtained based on vector similarity calculation.
 ![vector_store_index](assets/vector_store_index.webp)
-
 ![vector_store_query](assets/vector_store_query.webp)
-
-上面的表述中涉及到向量索引和检索中三个重要的概念: **文本嵌入模型**、**相似向量检索**和**向量数据库**。下面一一进行详细说明。
-
-##### 文本嵌入模型
-
-文本嵌入模型 ( Text Embedding Model ) 将非结构化的文本转换成结构化的向量 ( Vector )，目前常用的是学习得到的稠密向量。
-
+The above statement involves three important concepts in vector indexing and retrieval: **text embedding model**, **similar vector retrieval** and **vector database**. The details are explained one by one below.
+##### Text embedding model
+Text Embedding Model converts unstructured text into structured vectors (Vectors). Currently, dense vectors obtained through learning are commonly used.
 ![vectors-2](assets/vectors-2.svg)
-
-当前有很多文本嵌入模型可供选择，比如
-
-- 早期的 Word2Vec、GloVe 模型等，目前很少用。
-- 基于孪生 BERT 网络预训练得到的 [Sentence Transformers](https://arxiv.org/abs/1908.10084) 模型，对句子的嵌入效果比较好
-- OpenAI 提供的 [text-embedding-ada-002](https://openai.com/blog/new-and-improved-embedding-model) 模型，嵌入效果表现不错，且可以处理最大 8191 标记长度的文本
-- [Instructor](https://instructor-embedding.github.io/) 模型，这是一个经过指令微调的文本嵌入模型，可以根据任务(例如分类、检索、聚类、文本评估等)和领域(例如科学、金融等)，提供任务指令而生成相对定制化的文本嵌入向量，无需进行任何微调
-- [BGE](https://github.com/FlagOpen/FlagEmbedding/blob/master/README_zh.md)模型: 由智源研究院开源的中英文语义向量模型，目前在MTEB中英文榜单都排在第一位。
-
-下面就是评估文本嵌入模型效果的榜单 [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) (截止到 2023-08-18 )。值得说明的是，这些现成的文本嵌入模型没有针对特定的下游任务进行微调，所以不一定在下游任务上有足够好的表现。最好的方式一般是在下游特定的数据上重新训练或者微调自己的文本嵌入模型。
-
+There are currently many text embedding models to choose from, such as
+- Early Word2Vec, GloVe models, etc., are rarely used at present.
+- [Sentence Transformers](https://arxiv.org/abs/1908.10084) model based on twin BERT network pre-training, which has better embedding effect on sentences
+- [text-embedding-ada-002](https://openai.com/blog/new-and-improved-embedding-model) model provided by OpenAI, the embedding effect is good and can handle text with a maximum length of 8191 tokens
+- [Instructor](https://instructor-embedding.github.io/) model, which is an instruction-fine-tuned text embedding model that can be customized based on tasks (such as classification, retrieval, clustering, text evaluation, etc.) and domains ( Such as science, finance, etc.), providing task instructions to generate relatively customized text embedding vectors without any fine-tuning.
+- [BGE](https://github.com/FlagOpen/FlagEmbedding/blob/master/README_zh.md) model: Chinese and English semantic vector model open sourced by Zhiyuan Research Institute, currently ranked at MTEB in both Chinese and English lists The first one.
+The following is the list [MTEB Leaderboard](https://huggingface.co/spaces/mteb/leaderboard) for evaluating the effect of text embedding models (as of 2023-08-18). It is worth noting that these off-the-shelf text embedding models are not fine-tuned for specific downstream tasks, so they may not necessarily perform well enough on downstream tasks. The best way is generally to retrain or fine-tune your own text embedding model on specific data downstream.
 ![mteb_leaderboard_20230816](assets/mteb_leaderboard_20230816.png)
-
-##### 相似向量检索
-
-相似向量检索要解决的问题是给定一个查询向量，如何从候选向量中准确且高效地检索出与其相似的一个或多个向量。首先是**相似性度量**方法的选择，可以采用余弦相似度、点积、欧式距离、汉明距离等，通常情况下可以直接使用余弦相似度。其次是相似性检索算法和实现方法的选择，候选向量的数量量级、检索速度和准确性的要求、内存的限制等都是需要考虑的因素。
-
-当候选向量的数量比较少时，比如只有几万个向量，那么 Numpy 库就可以实现相似向量检索，实现简单，准确性高，速度也很快。国外有个博主做了个简单的基准测试发现 [Do you actually need a vector database](https://www.ethanrosenthal.com/2023/04/10/nn-vs-ann/) ，当候选向量数量在 10 万量级以下时，通过对比 Numpy 和另一种高效的近似最近邻检索实现库 [Hnswlib](https://github.com/nmslib/hnswlib) ，发现在检索效率上并没有数量级的差异，但 Numpy 的实现过程更简单。
-
+##### Similar vector retrieval
+The problem to be solved by similar vector retrieval is that given a query vector, how to accurately and efficiently retrieve one or more vectors that are similar to it from candidate vectors. The first is the choice of **similarity measurement** method, which can use cosine similarity, dot product, Euclidean distance, Hamming distance, etc. Under normal circumstances, cosine similarity can be used directly. The second is the choice of similarity retrieval algorithm and implementation method. The magnitude of candidate vectors, retrieval speed and accuracy requirements, memory limitations, etc. are all factors that need to be considered.
+When the number of candidate vectors is relatively small, for example, there are only tens of thousands of vectors, then the Numpy library can implement similar vector retrieval, which is simple to implement, highly accurate, and fast. A foreign blogger did a simple benchmark test and found that [Do you actually need a vector database](https://www.ethanrosenthal.com/2023/04/10/nn-vs-ann/), when the candidate vector When the number is below 100,000, by comparing Numpy with another efficient approximate nearest neighbor retrieval implementation library [Hnswlib](https://github.com/nmslib/hnswlib), we found that there is no order of magnitude difference in retrieval efficiency. Differences, but Numpy's implementation is simpler.
 ![hnsw_numpy_nn_search_benchmark](assets/hnsw_numpy_nn_search_benchmark.png)
-
-下面就是使用 Numpy 的一种简单实现代码:
-
+The following is a simple implementation code using Numpy:
 ```python
 import numpy as np
 
@@ -230,32 +195,22 @@ topk_indices = np.argsort(sim_scores)[::-1][:k]
 topk_values = sim_scores[topk_indices]
 ```
 
-对于大规模向量的相似性检索，使用 Numpy 库就不合适，需要使用更高效的实现方案。Facebook团队开源的 [Faiss](https://github.com/facebookresearch/faiss) 就是一个很好的选择。Faiss 是一个用于高效相似性搜索和向量聚类的库，它实现了在任意大小的向量集合中进行搜索的很多算法，除了可以在CPU上运行，有些算法也支持GPU加速。Faiss 包含多种相似性检索算法，具体使用哪种算法需要综合考虑数据量、检索频率、准确性和检索速度等因素。
-
-Pinecone 的这篇博客 [Nearest Neighbor Indexes for Similarity Search](https://www.pinecone.io/learn/series/faiss/vector-indexes/) 对 Faiss 中常用的几种索引进行了详细介绍，下图是几种索引在不同维度下的定性对比:
-
+For similarity retrieval of large-scale vectors, it is not appropriate to use the Numpy library, and a more efficient implementation solution is needed. [Faiss](https://github.com/facebookresearch/faiss), which is open sourced by the Facebook team, is a good choice. Faiss is a library for efficient similarity search and vector clustering. It implements many algorithms for searching in vector collections of any size. In addition to running on the CPU, some algorithms also support GPU acceleration. Faiss contains a variety of similarity retrieval algorithms. Which algorithm to use depends on factors such as data volume, retrieval frequency, accuracy, and retrieval speed.
+This blog by Pinecone [Nearest Neighbor Indexes for Similarity Search](https://www.pinecone.io/learn/series/faiss/vector-indexes/) provides a detailed introduction to several indexes commonly used in Faiss, as shown below It is a qualitative comparison of several indexes in different dimensions:
 ![faiss_ann_algo_comparison](assets/faiss_ann_algo_comparison.png)
-
-##### 向量数据库
-
-上面提到的基于 Numpy 和 Faiss 实现的向量相似检索方案，如果应用到实际产品中，可能还缺少一些功能，比如：
-
-- 数据托管和备份
-- 数据管理，比如数据的插入、删除和更新
-- 向量对应的原始数据和元数据的存储
-- 可扩展性，包括垂直和水平扩展
-
-所以**向量数据库**应运而生。简单来说，向量数据库是一种专门用于存储、管理和查询向量数据的数据库，可以实现向量数据的相似检索、聚类等。目前比较流行的向量数据库有 [Pinecone](https://www.pinecone.io/)、[Vespa](https://vespa.ai/)、[Weaviate](https://weaviate.io/)、[Milvus](https://milvus.io/)、[Chroma](https://www.trychroma.com/) 、[Tencent Cloud VectorDB](https://cloud.tencent.com/product/vdb)等，大部分都提供开源产品。
-
-Pinecone 的这篇博客 [What is a Vector Database](https://www.pinecone.io/learn/vector-database/) 就对向量数据库的相关原理和组成进行了比较系统的介绍，下面这张图就是文章中给出的一个向量数据库常见的数据处理流程:
-
+##### Vector database
+The vector similarity retrieval scheme based on Numpy and Faiss mentioned above may still lack some functions if applied to actual products, such as:
+- Data hosting and backup
+- Data management, such as data insertion, deletion and update
+- Storage of original data and metadata corresponding to vectors
+- Scalability, including vertical and horizontal expansion
+So **vector database** came into being. Simply put, a vector database is a database specifically used to store, manage and query vector data, and can achieve similar retrieval, clustering, etc. of vector data. The more popular vector databases currently include [Pinecone](https://www.pinecone.io/), [Vespa](https://vespa.ai/), [Weaviate](https://weaviate.io/) ,[Milvus](https://milvus.io/),[Chroma](https://www.trychroma.com/) ,[Tencent Cloud VectorDB](https://cloud.tencent.com/product/vdb ), etc., most of which provide open source products.
+Pinecone's blog [What is a Vector Database](https://www.pinecone.io/learn/vector-database/) provides a relatively systematic introduction to the relevant principles and composition of vector databases. The following picture This is a common data processing process for vector databases given in the article:
 ![vector_database_pipeline](assets/vector_database_pipeline.png)
-
-1. **索引**: 使用乘积量化 ( Product Quantization ) 、局部敏感哈希 ( LSH )、HNSW 等算法对向量进行索引，这一步将向量映射到一个数据结构，以实现更快的搜索。
-2. **查询**: 将查询向量和索引向量进行比较，以找到最近邻的相似向量。
-3. **后处理**: 有些情况下，向量数据库检索出最近邻向量后，对其进行后处理后再返回最终结果。
-
-向量数据库的使用比较简单，下面是使用 Python 操作 Pinecone 向量数据库的示例代码:
+1. **Index**: Index vectors using algorithms such as Product Quantization (Product Quantization), Locality Sensitive Hash (LSH), HNSW, etc. This step maps the vector to a data structure to achieve faster search.
+2. **Query**: Compare the query vector and the index vector to find the nearest neighbor similar vector.
+3. **Post-processing**: In some cases, after the nearest neighbor vector is retrieved from the vector database, it is post-processed and then the final result is returned.
+The use of the vector database is relatively simple. The following is a sample code for using Python to operate the Pinecone vector database:
 
 ```python
 # install python pinecone client
@@ -299,61 +254,28 @@ index.query(
 pinecone.delete_index("quickstart")
 ```
 
-## 查询和检索模块
-
-### 查询变换
-
-查询文本的表达方法直接影响着检索结果，微小的文本改动都可能会得到天差万别的结果。直接用原始的查询文本进行检索在很多时候可能是简单有效的，但有时候可能需要对查询文本进行一些变换，以得到更好的检索结果，从而更可能在后续生成更好的回复结果。下面列出几种常见的查询变换方式。
-
-#### 变换一: 同义改写
-
-将原始查询改写成相同语义下不同的表达方式，改写工作可以调用 LLM 完成。比如对于这样一个原始查询:  `What are the approaches to Task Decomposition?`，可以改写成下面几种同义表达: 
-
-> How can Task Decomposition be approached?
-> What are the different methods for Task Decomposition?
-> What are the various approaches to decomposing tasks?
-
-对于每种查询表达，分别检索出一组相关文档，然后对所有检索结果进行去重合并，从而得到一个更大的候选相关文档集合。通过将同一个查询改写成多个同义查询，能够克服单一查询的局限，获得更丰富的检索结果集合。
-
-#### 变换二: 查询分解
-
-有相关研究表明 ( [self-ask](https://ofir.io/self-ask.pdf)，[ReAct](https://arxiv.org/abs/2210.03629) )，LLM 在回答复杂问题时，如果将复杂问题分解成相对简单的子问题，回复表现会更好。这里又可以分成**单步分解**和**多步分解**。
-
-**单步分解**将一个复杂查询转化为多个简单的子查询，融合每个子查询的答案作为原始复杂查询的回复。
-
+## Query and retrieval module
+Relevant studies have shown that ([self-ask](https://ofir.io/self-ask.pdf), [ReAct](https://arxiv.org/abs/2210.03629) ), LLM is more effective in answering complex questions. , if complex questions are decomposed into relatively simple sub-questions, the response performance will be better. Here it can be divided into **single-step decomposition** and **multi-step decomposition**.
+**Single-step decomposition** converts a complex query into multiple simple subqueries, and fuses the answer to each subquery as a reply to the original complex query.
 ![single_step_diagram](assets/single_step_diagram.png)
-
-对于**多步分解**，给定初始的复杂查询，会一步一步地转换成多个子查询，结合前一步的回复结果生成下一步的查询问题，直到问不出更多问题为止。最后结合每一步的回复生成最终的结果。
-
+For **multi-step decomposition**, given an initial complex query, it will be converted into multiple subqueries step by step, and the next step of query questions will be generated based on the response results of the previous step until no more questions can be asked. Finally, the responses from each step are combined to generate the final result.
 ![multi_step_diagram](assets/multi_step_diagram.png)
-
-#### 变换三: HyDE 
-
-[HyDE](http://boston.lti.cs.cmu.edu/luyug/HyDE/HyDE.pdf)，全称叫 Hypothetical Document Embeddings，给定初始查询，首先利用 LLM 生成一个假设的文档或者回复，然后以这个假设的文档或者回复作为新的查询进行检索，而不是直接使用初始查询。这种转换在没有上下文的情况下可能会生成一个误导性的假设文档或者回复，从而可能得到一个和原始查询不相关的错误回复。下面是论文中给出的一个例子:
-
+#### Transformation 3: HyDE
+[HyDE](http://boston.lti.cs.cmu.edu/luyug/HyDE/HyDE.pdf), the full name is Hypothetical Document Embeddings. Given an initial query, LLM is first used to generate a hypothetical document or reply, and then Retrieve this hypothetical document or reply as a new query, rather than using the original query directly. This transformation may generate a misleading hypothetical document or response without context, which may result in an incorrect response that is not relevant to the original query. Here is an example given in the paper:
 ![hyde](assets/hyde.png)
-
-### 排序和后处理
-
-经过前面的检索过程可能会得到很多相关文档，就需要进行筛选和排序。常用的筛选和排序策略包括：
-
-- 基于相似度分数进行过滤和排序
-- 基于关键词进行过滤，比如限定包含或者不包含某些关键词
-- 让 LLM 基于返回的相关文档及其相关性得分来重新排序
-- 基于时间进行过滤和排序，比如只筛选最新的相关文档
-- 基于时间对相似度进行加权，然后进行排序和筛选
-
-## 回复生成模块
-
-### 回复生成策略
-
-检索模块基于用户查询检索出相关的文本块，回复生成模块让 LLM 利用检索出的相关信息来生成对原始查询的回复。LlamaIndex 中有给出一些不同的回复生成策略。
-
-一种策略是依次结合每个检索出的相关文本块，每次不断修正生成的回复。这样的话，有多少个独立的相关文本块，就会产生多少次的 LLM 调用。另一种策略是在每次 LLM 调用时，尽可能多地在 Prompt 中填充文本块。如果一个 Prompt 中填充不下，则采用类似的操作构建多个 Prompt，多个 Prompt 的调用可以采用和前一种相同的回复修正策略。
-
-### 回复生成 Prompt 模板
-
-下面是 LlamaIndex 中提供的一个生成回复的 Prompt 模板。从这个模板中可以看到，可以用一些分隔符 ( 比如 ------ ) 来区分相关信息的文本，还可以指定 LLM 是否需要结合它自己的知识来生成回复，以及当提供的相关信息没有帮助时，要不要回复等。
+### Sorting and post-processing
+After the previous retrieval process, you may get a lot of related documents, which need to be filtered and sorted. Common filtering and sorting strategies include:
+- Filter and sort based on similarity score
+- Filter based on keywords, such as limiting inclusion or exclusion of certain keywords
+- Let LLM reorder based on returned relevant documents and their relevance scores
+- Filter and sort based on time, such as only filtering the latest relevant documents
+- Weight similarity based on time, then sort and filter
+## Reply generation module
+### Reply generation strategy
+The retrieval module retrieves relevant text chunks based on the user query, and the reply generation module lets LLM use the retrieved relevant information to generate a reply to the original query. There are some different reply generation strategies given in LlamaIndex.
+One strategy is to combine each retrieved relevant text chunk sequentially, continuously revising the generated responses each time. In this case, there will be as many LLM calls as there are independent relevant blocks of text. Another strategy is to populate the Prompt with as many blocks of text as possible on each LLM call. If one Prompt cannot be filled, use similar operations to construct multiple Prompts. The calls to multiple Prompts can use the same reply correction strategy as the previous one.
+### Reply to generate Prompt template
+Below is a Prompt template provided in LlamaIndex that generates responses. As you can see from this template, you can use some delimiters (such as ------) to distinguish the text of relevant information. You can also specify whether LLM needs to combine its own knowledge to generate a reply, and when providing relevant information. If it doesn’t help, do you want to reply or not?
 
 ```python
 template = f'''
@@ -367,7 +289,7 @@ If the context isn't helpful, you can/don’t answer the question on your own.
 '''
 ```
 
-下面的 Prompt 模板让 LLM 不断修正已有的回复。
+The Prompt template below allows LLM to continuously revise existing responses.
 
 ```python
 template = f'''
@@ -381,97 +303,46 @@ Using both the new context and your own knowledege, update or repeat the existin
 '''
 ```
 
-# 案例分析和应用
-
-## ChatGPT 检索插件
-
-ChatGPT 检索插件 [ChatGPT Retrieval Plugin](https://github.com/openai/chatgpt-retrieval-plugin) 是 OpenAI 官方给出的一个通过检索来增强 LLM 的范例，实现了让 ChatGPT 访问私有知识的一种途径，其在 Github 上的开源仓库短时间内获得了大量关注。下面是 ChatGPT 检索插件内部原理的一张示意图([图片来源: openai-chatgpt-retrieval-plugin-and-postgresql-on-azure](https://techcommunity.microsoft.com/t5/azure-database-for-postgresql/openai-chatgpt-retrieval-plugin-and-postgresql-on-azure/ba-p/3826411))。
-
-![chatgpt_retrieval_plugin_internals_diagram](assets/chatgpt_retrieval_plugin_internals_diagram.png)
-
-在 API 接口设计上，检索插件提供了下面几种接口:
-
-- `/upsert`: 该接口将上传的一个或多个文本文档，先切分成文本块，每个文本块大小在 200 个 Token，然后利用 OpenAI 的 文本嵌入模型将文本块转换成向量，最后连同原始文本和元信息存储在向量数据库中，代码仓库中实现了对几乎所有主流向量类数据库的支持。
-- `/upsert-file`: 该接口允许上传 PDF、TXT、DOCX、PPTX 和 MD 格式的单个文件，先转换成纯文本后，后续处理流程和 `/upsert` 接口一样。
-- `/query`: 该接口实现对给定的查询，返回和查询最相关的几个文本块，实现原理也是基于相似向量检索。用户可以在请求中通过 `filter` 参数对文档进行过滤，通过 `top_k` 参数指定返回的相关文本块数量。
-- `/delete`: 该接口实现从向量数据库中对一个或多个文档进行删除操作。
-
-## LlamaIndex 和 LangChain
-
-[LlamaIndex](https://gpt-index.readthedocs.io/en/latest/index.html#) 是一个服务于 LLM 应用的数据框架，提供外部数据源的导入、结构化、索引、查询等功能，这篇文章的结构和内容有很大一部分是参考 LlamaIndex 的文档，文章中提到的很多模块、算法和策略，LlamaIndex 基本都有对应的实现，提供了相关的高阶和低阶 API。
-
-LlamaIndex 主要包含以下组件和特性：
-
-- 数据连接器：能从多种数据源中导入数据，有个专门的项目 [Llama Hub](https://llamahub.ai/)，可以连接多种来源的数据
-- 数据索引：支持对读取的数据进行多种不同的索引，便于后期的检索
-- 查询和对话引擎：既支持单轮形式的查询交互引擎，也支持多轮形式的对话交互引擎
-- 应用集成：可以方便地与一些流行的应用进行集成，比如 ChatGPT、LangChain、Flask、Docker等
-
-下面是 LlamaIndex 整体框架的一张示意图。
-
-![rag_using_llamaindex](assets/rag_using_llamaindex.jpeg)
-
-除了 LlamaIndex，[LangChain](https://python.langchain.com/docs/get_started/introduction.html) 也是当前流行的一种 LLM 应用开发框架，其中也包含一些检索增强 LLM 的相关组件，不过相比较而言，LlamaIndex 更侧重于检索增强 LLM 这一相对小的领域，而 LangChain 覆盖的领域更广，比如会包含 LLM 的链式应用、Agent 的创建和管理等。下面这张图就是 LangChain 中 [Retrieval](https://python.langchain.com/docs/modules/data_connection/) 模块的整体流程示意图，包含数据加载、变换、嵌入、向量存储和检索，整体处理流程和 LlamaIndex 是一样的。
-
-![langchain_rag_pipeline](assets/langchain_rag_pipeline.jpeg)
-
-## Github Copilot 分析
-
-[Github Copilot](https://github.com/features/copilot) 是一款 AI 辅助编程工具。如果使用过就会发现，Github Copilot 可以根据代码的上下文来帮助用户自动生成或者补全代码，有时候可能刚写下类名或者函数名，又或者写完函数注释，Copilot 就给出了生成好的代码，并且很多时候可能就是我们想要实现的代码。由于 Github Copilot 没有开源，网上有人对其 VSCode 插件进行了逆向分析，比如 [copilot internals](https://thakkarparth007.github.io/copilot-explorer/posts/copilot-internals) 和 [copilot analysis](https://github.com/mengjian-github/copilot-analysis)，让我们可以对 Copilot 的内部实现有个大概的了解。简单来说，Github Copilot 插件会收集用户在 VSCode 编程环境中的多种上下文信息构造 Prompt，然后把构造好的 Prompt 发送给代码生成模型 ( 比如 Codex )，得到补全后的代码，显示在编辑器中。如何检索出相关的上下文信息 ( Context ) 就是其中很重要的一个环节。Github Copilot 算是检索增强 LLM 在 AI 辅助编程方向的一个应用。
-
-需要说明的是，上面提到的两份逆向分析是几个月之前做的，Github Copilpot 目前可能已经做了很多的更新和迭代，另外分析是原作者阅读理解逆向后的代码得到的，所以可能会产生一些理解上的偏差。而下面的内容是我结合那两份分析产生的，因此有些地方可能是不准确甚至是错误的，但不妨碍我们通过 Copilot 这个例子来理解上下文信息对增强 LLM 输出结果的重要性，以及学习一些上下文相关信息检索的实践思路。
-
-下面是一个 Prompt 的示例，可以看到包含前缀代码信息 ( prefix )，后缀代码信息 ( suffix )，生成模式 ( isFimEnabled )，以及 Prompt 不同组成元素的起始位置信息 ( promptElementRanges )。
-
+# Case analysis and application
+[Github Copilot](https://github.com/features/copilot) is an AI-assisted programming tool. If you have used it, you will find that Github Copilot can help users automatically generate or complete code according to the context of the code. Sometimes you may just write down the class name or function name, or after writing the function comment, Copilot will give you the generated code. code, and many times it may be the code we want to implement. Since Github Copilot is not open source, some people on the Internet have conducted reverse engineering analysis of its VSCode plug-in, such as [copilot internals](https://thakkarparth007.github.io/copilot-explorer/posts/copilot-internals) and [copilot analysis](https ://github.com/mengjian-github/copilot-analysis), so that we can have a general understanding of the internal implementation of Copilot. To put it simply, the Github Copilot plug-in will collect the user's various contextual information in the VSCode programming environment to construct a Prompt, and then send the constructed Prompt to the code generation model (such as Codex) to obtain the completed code and display it in the editor. middle. How to retrieve relevant context information (Context) is a very important link. Github Copilot is an application of search-enhanced LLM in the direction of AI-assisted programming.
+It should be noted that the two reverse engineering analyzes mentioned above were done a few months ago. Github Copilpot may have done a lot of updates and iterations. In addition, the analysis was obtained by the original author after reading and understanding the reversed code, so it may be There will be some deviations in understanding. The following content is generated by me combining those two analyses, so some places may be inaccurate or even wrong, but it does not prevent us from using the example of Copilot to understand the importance of contextual information in enhancing LLM output results, and to learn some Practical ideas for context-sensitive information retrieval.
+The following is an example of a Prompt. You can see that it contains prefix code information (prefix), suffix code information (suffix), generation mode (isFimEnabled), and starting position information of different elements of the Prompt (promptElementRanges).
 ![github_copilot_prompt_example](assets/github_copilot_prompt_example.png)
-
-抛开代码生成模型本身的效果不谈，Prompt 构造的好坏很大程度上会影响代码补全的效果，而上下文相关信息 ( Context ) 的提取和构成很大程度上又决定了 Prompt 构造的好坏。让我们来看一下 Github Copilot 的 Prompt 构造中有关上下文相关信息抽取的一些关键思路和实现。
-
-Copilot 的 Prompt 包含不同类型的相关信息，包括
-
-- `BeforeCursor`：光标前的内容
-- `AfterCursor`：光标后的内容
-- `SimilarFile`：与当前文件相似度较高的代码片段
-- `ImportedFile` ：import 依赖
-- `LanguageMarker`：文件开头的语言标记
-- `PathMarker`：文件的相对路径信息
-
-其中相似代码片段的抽取，会先获取最近访问过的多份同种语言的文件，作为抽取相似代码片段的候选文档。然后设定窗口大小 ( 比如默认为 60 行 ) 和步长 ( 比如默认为 1 行 )，以滑动窗口的方式将候选文档切分成代码块。接着计算每个切分后的代码块和当前文件的相似度，最后保留相似度较高的几个代码块。这里当前文件的获取是从当前光标往前截取窗口大小的内容，相似度的度量采用的是 **Jaccard 系数**，具体来说，会对代码块中的每一行进行分词，过滤常见的代码关键字 ( 比如 if, then, else, for 这些)，得到一个标记 ( Token ) 集合，然后就可以在当前代码块和候选代码块的 Token 集合之间计算 Jaccard 相似度。在 Copilot 的场景下，这种相似度的计算方式简单有效。
-$$J(A, B) = \frac{|A \cap B|}{|A \cup B|} = \frac{|A \cap B|}{|A| + |B| - |A \cap B|}$$
-上面的一篇分析文章中将 Prompt 的组成总结成下面的一张图。
-
+Regardless of the effect of the code generation model itself, the quality of Prompt construction will largely affect the effect of code completion, and the extraction and composition of context-related information (Context) will largely determine the quality of Prompt construction. bad. Let’s take a look at some key ideas and implementations of context-sensitive information extraction in Github Copilot’s Prompt construct.
+Copilot's Prompt contains different types of related information, including
+- `BeforeCursor`: the content before the cursor
+- `AfterCursor`: content after the cursor
+- `SimilarFile`: code snippets that are highly similar to the current file
+- `ImportedFile`: import dependencies
+- `LanguageMarker`: language mark at the beginning of the file
+- `PathMarker`: relative path information of the file
+To extract similar code snippets, multiple recently accessed files in the same language will first be obtained as candidate documents for extracting similar code snippets. Then set the window size (for example, the default is 60 lines) and the step size (for example, the default is 1 line), and divide the candidate documents into code blocks in a sliding window manner. Then calculate the similarity between each segmented code block and the current file, and finally retain several code blocks with higher similarity. The acquisition of the current file here is to intercept the content of the window size from the current cursor forward. The similarity measure uses the **Jaccard coefficient**. Specifically, each line in the code block will be segmented and common codes will be filtered. Keywords (such as if, then, else, for these), get a token (Token) set, and then calculate the Jaccard similarity between the Token set of the current code block and the candidate code block. In the Copilot scenario, this similarity calculation method is simple and effective.
+$$J(A, B) = \frac{|A \cap B|}{|A \cup B|} = \frac{|A \cap B|}{|A| + |B| - |A \ cap B|}$$
+The above analysis article summarizes the composition of Prompt into the following picture.
 ![github_copilot_prompt_components](assets/github_copilot_prompt_components.png)
+After constructing the Prompt, Copilot will also determine whether it is necessary to initiate a request. The calculation of the code generation model is very computationally intensive, so it is necessary to filter some unnecessary requests. One of the judgments is to use a simple linear regression model to score the Prompt. When the score is lower than a certain threshold, the request will not be issued. This linear regression model utilizes features such as code language, whether the last code completion suggestion was accepted or rejected, the length of time since the last code completion suggestion was accepted or rejected, the character to the left of the cursor, etc. By analyzing the weights of the model, the original author made some observations:
+- Some programming languages ​​have a higher weight than other languages ​​(php > js > python > rust > ...), PHP has the highest weight, and sure enough **PHP is the best language in the world** ( ^\_^ ).
+- It is logical that the right half bracket (e.g. `)`, `]` ) has less weight than the left half bracket.
+Through the analysis of Github Copilot, a programming aid, we can see:
+- Retrieval-enhanced LLM ideas and technologies play an important role in the implementation of Github Copilot
+- Context-related information (Context) can be a broad concept, it can be related text or code fragments, or it can be file paths, related dependencies, etc. Each scenario can define its specific context elements.
+- The measurement of similarity and the similar retrieval method can vary depending on the scenario. Not all scenarios need to use cosine similarity. They all need to find relevant documents through vector similarity retrieval. For example, the implementation of Copilot uses a simple Jaccard coefficient. To calculate the similarity of the Token set after word segmentation, it is simple and efficient.
+## Retrieval and Q&A of documents and knowledge bases
 
-构造好 Prompt 后，Copilot 还会判断是否有必要发起请求，代码生成模型的计算是非常耗费算力的，因此有必要过滤一些不必要的请求。其中一个判断是利用简单的线性回归模型对 Prompt 进行打分，当分数低于某个阈值时，请求就不会发出。这个线性回归模型利用的特征包括像代码语言、上一次代码补全建议是否被采纳或拒绝、上一次采纳或拒绝距现在的时长、光标左边的字符等。通过分析模型的权重，原作者给出了一些观察：
-- 一些编程语言的权重相对于其他语言权重要更高 ( php > js > python > rust > ... )，PHP 权重最高，果然 **PHP是世界上最好的语言** ( ^\_^ )。
-- 右半边括号 ( 比如 `)`，`]` ) 的权重要低于左半边括号，这是符合逻辑的。
-
-通过对 Github Copilot 这个编程辅助工具的分析可以看到：
-
-- 检索增强 LLM 的思路和技术在 Github Copilot 的实现中发挥着重要作用 
-- 上下文相关信息 ( Context ) 可以是一个广义概念，可以是相关的文本或者代码片段，也可以是文件路径、相关依赖等，每个场景都可以定义其特定的上下文元素
-- 相似性的度量和相似检索方法可以因场景而异，不一定所有场景都需要用余弦相似度，都需要通过向量相似检索的方式找出相关文档，比如 Copilot 的实现中就利用简单的 Jaccard 系数来计算分词后 Token 集合的相似度，简单高效。
-
-## 文档和知识库的检索与问答
-
-检索增强 LLM 技术的一个典型应用是知识库或者文档问答，比如针对企业内部知识库或者一些文档的检索与问答等。这个应用方向目前已经出现了很多商业化和开源的产品。比如 [Mendable](https://www.mendable.ai/) 就是一款商业产品，能提供基于文档的 AI 检索和问答能力。上面提到的 LlamaIndex 和 LangChain 项目官方文档的检索能力就是由 Mendable 提供的。下面就是一张使用截图，可以看到 Mendable 除了会给出生成的回复，也会附上参考链接。
-
+A typical application of retrieval-enhanced LLM technology is knowledge base or document question and answer, such as retrieval and question and answer for an enterprise's internal knowledge base or some documents. There are currently many commercial and open source products in this application direction. For example, [Mendable](https://www.mendable.ai/) is a commercial product that provides document-based AI retrieval and question and answer capabilities. The search capabilities for the official documents of the LlamaIndex and LangChain projects mentioned above are provided by Mendable. Below is a screenshot of usage. You can see that Mendable will not only give generated responses, but also attach reference links.
 ![mendable_screenshot](assets/mendable_screenshot.png)
-
-除了商业产品，也有很多类似的开源产品。比如
-
-- [Danswer](https://github.com/danswer-ai/danswer): 提供针对企业内部文档的问答功能，能实现多种来源的数据导入，支持传统的检索和基于 LLM 的问答，能智能识别用户的搜索意图，从而采用不同的检索策略，支持用户和文档的权限管理，以及支持Docker部署等
-- [PandaGPT](https://www.pandagpt.io/): 支持用户上传文件，然后可以针对文件内容进行提问
-- [FastGPT](https://fastgpt.run/): 一个开源的基于 LLM 的 AI 知识库问答平台
-- [Quivr](https://github.com/StanGirard/quivr): 这个开源项目能实现用户对个人文件或者知识库的检索和问答，期望成为用户的「第二大脑」
-- [ChatFiles](https://github.com/guangzhengli/ChatFiles): 又一个基于 LLM 的文档问答开源项目
-
-下面这张图是 ChatFiles 项目的技术架构图，可以发现这类项目的基本模块和架构都很类似，基本都遵从检索增强 LLM 的思路，这类知识库问答应用几乎成为 LLM 领域的 **Hello World** 应用了。
+In addition to commercial products, there are also many similar open source products. for example
+- [Danswer](https://github.com/danswer-ai/danswer): Provides a question and answer function for internal corporate documents, can import data from multiple sources, supports traditional retrieval and LLM-based question and answer, and can intelligently Identify the user's search intent, thereby adopting different retrieval strategies, supporting user and document permission management, and supporting Docker deployment, etc.
+- [PandaGPT](https://www.pandagpt.io/): Supports users to upload files and then ask questions about the file content
+- [FastGPT](https://fastgpt.run/): An open source LLM-based AI knowledge base Q&A platform
+- [Quivr](https://github.com/StanGirard/quivr): This open source project enables users to search and question personal files or knowledge bases, hoping to become the user's "second brain"
+- [ChatFiles](https://github.com/guangzhengli/ChatFiles): Another LLM-based document Q&A open source project
+The picture below is the technical architecture diagram of the ChatFiles project. It can be found that the basic modules and architecture of such projects are very similar. They basically follow the idea of ​​​​retrieval-enhanced LLM. This type of knowledge base question and answer application has almost become the **Hello World in the LLM field.** Applied.
 
 ![chatfiles_architecture](assets/chatfiles_architecture.png)
 
 
-# 参考
+# References
 
 1. [ChatGPT Retrieval Plugin](https://github.com/openai/chatgpt-retrieval-plugin) #project 
 2. [Hypothetical Document Embeddings](https://arxiv.org/abs/2212.10496?ref=mattboegner.com) #paper
