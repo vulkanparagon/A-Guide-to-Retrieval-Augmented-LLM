@@ -1,6 +1,7 @@
 # A-Guide-to-Retrieval-Augmented-LLM
 
-Translated version
+Translated version from Chinese to English
+Original Authoer: https://github.com/Wang-Shuo/A-Guide-to-Retrieval-Augmented-LLM
 
 The emergence of ChatGPT has allowed us to see the capabilities of Large Language Model (LLM) in many aspects such as language and code understanding, human instruction following, and basic reasoning. However, the hallucination problem 
 **[Hallucinations](https://machinelearningmastery.com/a-gentle-introduction-to-hallucinations-in-large-language-models/)** remains an important challenge facing current large language models. Simply put, the hallucination problem is when an LLM generates results that are incorrect, absurd, or inconsistent with reality. In addition, data freshness (Data Freshness) is another problem that occurs when LLM generates results, that is, LLM may not be able to give or give outdated answers to some time-sensitive questions. Retrieving external relevant information to enhance the generated results of LLM is a popular solution to solve the above problems. This solution is called Retrieval Augmented LLM (Retrieval Augmented LLM), sometimes also called Retrieval Augmented LLM. Retrieval Augmented Generation (RAG) for retrieval. This long article will give a relatively comprehensive introduction to the scheme of retrieval-enhanced LLM. The main contents include:
